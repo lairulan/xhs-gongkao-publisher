@@ -1,14 +1,14 @@
 ---
 name: xhs-gongkao-publisher
-version: 1.2.0
+version: 1.3.0
 description: 小红书公考种草内容自动生成与发布。自动选题、生成小红书风格图文笔记（信息图+文字笔记混合模式）、配图生成、一键发布到小红书。支持爆款复刻、智能选题轮换、persona人设驱动。触发词："公考种草"、"公考笔记"、"生成公考内容"、"小红书公考"、"gongkao"、"xhs公考"。
 author: rulanlai
 tags: [小红书, 公考, 种草, 自动发布, 内容生产]
 ---
 
-# 小红书公考种草发布助手 v1.2.0
+# 小红书公考种草发布助手 v1.3.0
 
-自动生成公考备考种草内容并发布到小红书。支持信息图（干货/攻略）和文字笔记（经验/心态）两种形式，每天 1-2 篇，单账号运营。
+自动生成公考备考种草内容并发布到小红书。支持信息图（干货/攻略）和文字笔记（经验/心态）两种形式，每天 1-2 篇。支持本地 MCP 发布（Cookie 持久化）和沙箱 Browser 发布两种模式，自动检测环境切换。
 
 <!-- ============================================================
   📁 项目文件结构导航（新开对话时先看这里）
@@ -27,9 +27,12 @@ tags: [小红书, 公考, 种草, 自动发布, 内容生产]
   ============================================================
 
   1. xiaohongshu-mcp               ← 小红书 MCP 服务器（CDP 浏览器自动化）
-     路径: ~/xiaohongshu-mcp/xiaohongshu-mcp-darwin-arm64
+     路径: ~/xiaohongshu-mcp/xiaohongshu-mcp-{platform}
+           macOS: xiaohongshu-mcp-darwin-arm64
+           Linux: xiaohongshu-mcp-linux-amd64
      工具: check_login_status, get_login_qrcode, search_feeds,
            get_feed_detail, publish_image
+     Cookie: 自动持久化到 ~/xiaohongshu-mcp/cookies.json
 
   2. baoyu-xhs-images Skill        ← 小红书信息图生成（10种视觉风格 × 8种布局）
      用途: Step 4 信息图模式的配图生成
@@ -63,8 +66,8 @@ tags: [小红书, 公考, 种草, 自动发布, 内容生产]
 | 配置项 | 值 |
 |--------|-----|
 | 平台 | 小红书 |
-| MCP 服务 | `~/xiaohongshu-mcp/xiaohongshu-mcp-darwin-arm64` |
-| Cookie 文件 | `~/xiaohongshu-mcp/cookies.json` |
+| MCP 服务 | `~/xiaohongshu-mcp/xiaohongshu-mcp-{platform}` （macOS: darwin-arm64, Linux: linux-amd64） |
+| Cookie 文件 | `~/xiaohongshu-mcp/cookies.json`（MCP 自动管理，跨会话持久化） |
 | 内容存档 | `~/.claude/skills/xhs-gongkao-publisher/output/` |
 | Obsidian 备份 | `~/Documents/Obsidian/公考种草/` |
 
@@ -102,19 +105,27 @@ tags: [小红书, 公考, 种草, 自动发布, 内容生产]
 <!-- 🔧 修改指引：
      - 如果 MCP 服务路径变了，改下面的路径
      - 如果换了配图工具（比如不用 gemini-image），改第3项
-     - 这一步是前置守门员，任何一项不通过都会阻止后续流程 -->
+     - 这一步是前置守门员，任何一项不通过都会阻止后续流程
+     - v1.3.0: 新增环境自动检测，MCP 优先 -->
 
-**必须在开始前完成，任何一项失败则停止并提示用户。**
+**必须在开始前完成。自动检测运行环境，决定发布通道。**
 
-1. 检查 xiaohongshu-mcp 服务是否可用
+1. **环境检测（自动）**
    - 尝试调用 MCP 工具 `check_login_status`
-   - 如果服务未启动，提示用户运行：`~/xiaohongshu-mcp/xiaohongshu-mcp-darwin-arm64`
-2. 检查登录状态
-   - 已登录：显示用户名，继续
-   - 未登录：调用 `get_login_qrcode` 获取二维码，提示用户扫码
-3. 检查配图能力
+   - **MCP 可用** → 设为 `发布通道 = MCP`（本地环境，推荐）
+   - **MCP 不可用** → 检查 `browser` 工具是否可用
+     - browser 可用 → 设为 `发布通道 = Browser`（沙箱/云端环境）
+     - 都不可用 → 设为 `发布通道 = dry-run`，仅生成内容不发布
+2. **检查登录状态**
+   - MCP 通道：调用 `check_login_status`，未登录则 `get_login_qrcode` 扫码
+   - Browser 通道：`browser navigate` 到小红书创作平台，检查是否已登录
+3. **检查配图能力**
    - 确认 `baoyu-xhs-images` Skill 可用（信息图模式）
    - 确认 `gemini-image` 或 `baoyu-image-gen` Skill 可用（文字笔记配图）
+
+> **环境差异说明**：
+> - **本地（MCP）**：Cookie 自动持久化到 `cookies.json`，无需每次扫码；MCP 内置 Chromium 直接操作
+> - **沙箱（Browser）**：每次新会话需重新登录；通过 browser 工具 + CDP 协议操作；私密发布下拉可能受反自动化保护
 
 ### Step 1: 智能选题
 
@@ -330,23 +341,22 @@ tags: [小红书, 公考, 种草, 自动发布, 内容生产]
      - 发布时间随机化、风控规则的详细定义在 publish-sop.md
      - 日志和存档路径可自定义 -->
 
-调用 xiaohongshu-mcp 的 `publish_image` 工具：
+**发布方式**（Step 0 环境检测自动决定）：
+1. **MCP 调用**（本地环境，推荐）：通过 xiaohongshu-mcp 的 `publish_image` 工具，Cookie 持久化免扫码
+2. **Browser 直接操作**（沙箱/云端环境，备用）：通过 browser 工具操作创作服务平台 Web UI + CDP 图片上传
 
-```
-MCP 调用参数：
-  tool: publish_image
-  arguments:
-    title: [标题]
-    content: [正文，含话题标签]
-    images: [图片文件路径数组]
-    tags: [话题标签数组]
-```
+**关键风控策略：默认私密发布**
+- MCP 通道：通过参数设置"仅自己可见"
+- Browser 通道：尝试操作权限下拉（如受反自动化保护则以公开发布，提醒用户手动改私密）
+- 发布后提示用户在 APP 上手动检查并切换为公开
+- Browser 通道操作节奏：每步之间间隔 2-5 秒，总操作时长 >= 2 分钟
 
 详细操作步骤见 `references/publish-sop.md`。
 
 发布成功后：
 1. 记录发布日志到 `output/publish-log.md`
 2. 保存内容到 `output/{date}-{title-slug}.md`
+3. 提示用户："笔记已发布为【仅自己可见】，请在 APP 上检查排版后手动切换为公开"
 
 ### Step 7: 发布后（可选）
 
@@ -424,6 +434,7 @@ MCP 调用参数：
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| 1.3.0 | 2026-03-17 | 双通道发布：MCP（本地推荐）+ Browser（沙箱备用），环境自动检测，跨平台路径支持，Cookie 持久化说明 |
 | 1.2.0 | 2026-03-11 | 全文注释系统：文件结构导航+外部依赖说明+各Step修改指引+开发TODO |
 | 1.1.0 | 2026-03-11 | 新增 Step 3.5 人性化改写（反AI检测），8条去AI味硬规则+图片去AI化+审核清单增强 |
 | 1.0.0 | 2026-03-11 | 初始版本：6大内容支柱、双模式笔记、xiaohongshu-mcp集成 |
