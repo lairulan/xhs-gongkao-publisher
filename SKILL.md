@@ -106,26 +106,26 @@ tags: [小红书, 公考, 种草, 自动发布, 内容生产]
      - 如果 MCP 服务路径变了，改下面的路径
      - 如果换了配图工具（比如不用 gemini-image），改第3项
      - 这一步是前置守门员，任何一项不通过都会阻止后续流程
-     - v1.3.0: 新增环境自动检测，MCP 优先 -->
+     - v1.4.0: 本地环境 Browser 优先（零配置），MCP 作为备用 -->
 
 **必须在开始前完成。自动检测运行环境，决定发布通道。**
 
 1. **环境检测（自动）**
-   - 尝试调用 MCP 工具 `check_login_status`
-   - **MCP 可用** → 设为 `发布通道 = MCP`（本地环境，推荐）
-   - **MCP 不可用** → 检查 `browser` 工具是否可用
-     - browser 可用 → 设为 `发布通道 = Browser`（沙箱/云端环境）
+   - 检查 `browser` 工具是否可用
+   - **browser 可用** → 设为 `发布通道 = Browser`（本地环境，推荐，零配置）
+   - **browser 不可用** → 尝试调用 MCP 工具 `check_login_status`
+     - MCP 可用 → 设为 `发布通道 = MCP`（需预启动 xiaohongshu-mcp 服务）
      - 都不可用 → 设为 `发布通道 = dry-run`，仅生成内容不发布
 2. **检查登录状态**
+   - Browser 通道：`browser navigate` 到小红书创作平台，检查是否已登录；可用 `/setup-browser-cookies` 导入本机浏览器 Cookie
    - MCP 通道：调用 `check_login_status`，未登录则 `get_login_qrcode` 扫码
-   - Browser 通道：`browser navigate` 到小红书创作平台，检查是否已登录
 3. **检查配图能力**
    - 确认 `baoyu-xhs-images` Skill 可用（信息图模式）
    - 确认 `gemini-image` 或 `baoyu-image-gen` Skill 可用（文字笔记配图）
 
 > **环境差异说明**：
-> - **本地（MCP）**：Cookie 自动持久化到 `cookies.json`，无需每次扫码；MCP 内置 Chromium 直接操作
-> - **沙箱（Browser）**：每次新会话需重新登录；通过 browser 工具 + CDP 协议操作；私密发布下拉可能受反自动化保护
+> - **本地（Browser，推荐）**：零配置，Claude Code 内置 browser 工具直接可用；可通过 `/setup-browser-cookies` 导入真实浏览器 Cookie 实现免扫码；私密发布下拉可能受反自动化保护（可公开发布后手动切换）
+> - **MCP（备用）**：Cookie 自动持久化到 `cookies.json`，无需每次扫码；需预先启动 xiaohongshu-mcp 服务
 
 ### Step 1: 智能选题
 

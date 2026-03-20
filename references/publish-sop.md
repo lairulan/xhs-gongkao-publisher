@@ -8,7 +8,7 @@
      - 发布频率/时间调整：改"风控注意事项"部分
      - 行为反检测策略调整：改"行为层反检测"部分（v1.1.0新增，防AI托管识别）
      - 异常处理规则变化：改"异常处理"部分
-     📝 v1.3.0: MCP 提升为主要发布通道（本地推荐），Browser 降为备用（沙箱/云端） -->
+     📝 v1.4.0: Browser 提升为主要发布通道（本地推荐，零配置），MCP 降为备用（需预启动服务） -->
 
 ## 前置条件
 
@@ -51,27 +51,12 @@ MCP Tool: get_login_qrcode
 - 数量限制：1-9 张
 - 图片数组按展示顺序排列，第一张为封面
 
-### 3. MCP 发布流程（本地环境，推荐）
+### 3. Browser 发布流程（本地环境，推荐）
 
-MCP 通道优先：Cookie 持久化、内置 Chromium 直接操作、无反自动化限制。
+Browser 通道优先：零配置、Claude Code 内置 browser 工具直接可用、无需预启动服务。
+可通过 `/setup-browser-cookies` 导入真实浏览器 Cookie 实现免扫码。
 
-```
-MCP Tool: publish_image
-Arguments:
-  title: "标题文字"
-  content: "正文内容（含话题标签）"
-  images: ["/path/to/image1.png", "/path/to/image2.png", ...]
-  tags: ["公考", "行测", "备考干货"]
-```
-
-**MCP 优势**：
-- Cookie 自动持久化到 `~/xiaohongshu-mcp/cookies.json`，首次扫码后无需重复登录
-- 内置浏览器环境，不受沙箱网络/资源限制
-- 直接 API 调用，操作稳定可靠
-
-### 4. Browser 发布流程（沙箱/云端环境，备用）
-
-MCP 不可用时（沙箱环境），通过 browser 工具直接操作创作服务平台：
+通过 browser 工具直接操作小红书创作服务平台：
 
 **4.1 打开发布页**
 ```
@@ -137,6 +122,25 @@ browser navigate "https://creator.xiaohongshu.com/publish/publish"
  2. 如为公开发布，通过 ··· → 权限设置 调整可见性
  3. 同时顺手浏览几篇推荐笔记、点赞 2-3 篇（反检测）"
 ```
+
+### 4. MCP 发布流程（备用，需预启动服务）
+
+Browser 不可用时，通过 xiaohongshu-mcp 服务发布。需先启动 MCP 服务。
+
+```
+MCP Tool: publish_image
+Arguments:
+  title: "���题文字"
+  content: "正文内容（含话题标签）"
+  images: ["/path/to/image1.png", "/path/to/image2.png", ...]
+  tags: ["公考", "行测", "备考干货"]
+```
+
+**MCP 优势**：
+- Cookie 自动持久化到 `~/xiaohongshu-mcp/cookies.json`，首次扫码后无需重复登录
+- 内置浏览器环境，不受沙箱网络/资源限制
+- 直接 API 调用，操作稳定可靠
+- 可设置私密发布（无反自动化限制）
 
 ### 5. 错误处理
 
