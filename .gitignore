@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Local runtime output
+output/*
+!output/.gitkeep
+
+# macOS
+.DS_Store

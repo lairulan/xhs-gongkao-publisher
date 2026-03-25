@@ -1,35 +1,38 @@
 # 小红书发布操作 SOP
 
-<!-- 📄 文件用途：定义小红书发布的完整操作流程（MCP调用/Browser备用/风控/行为反检测）
+<!-- 📄 文件用途：定义小红书发布的完整操作流程（MCP 优先发布 + Browser 兜底 / 风控 / 行为反检测）
      📌 被引用于：SKILL.md Step 6（发布调用）、Step 0（环境预检参考）
      🔧 修改场景：
-     - MCP 调用参数变化：改 Step 3（MCP发布流程）的 tool/arguments
-     - Browser 操作变化：改 Step 4（Browser发布流程）的操作步骤
+     - MCP 发布流程变化：改 Step 3（MCP 发布流程）的操作步骤
+     - Browser 操作变化：改 Step 4（Browser 发布流程）的操作步骤
      - 发布频率/时间调整：改"风控注意事项"部分
      - 行为反检测策略调整：改"行为层反检测"部分（v1.1.0新增，防AI托管识别）
      - 异常处理规则变化：改"异常处理"部分
-     📝 v1.4.0: Browser 提升为主要发布通道（本地推荐，零配置），MCP 降为备用（需预启动服务） -->
+     📝 v2.0.0: MCP 优先发布 + Browser 兜底，新增矩阵管理预备 -->
 
 ## 前置条件
 
-1. xiaohongshu-mcp 服务运行中
-2. 已通过 `check_login_status` 确认登录状态
-3. 内容已生成完毕（标题、正文、图片、话题）
+1. 内容已生成完毕（标题、正文、图片、话题）
+2. `browser` 工具可用
+3. 浏览器已登录小红书创作平台，或已准备好 `/setup-browser-cookies`
+4. `xiaohongshu-mcp` MCP Server 已启动且已登录（或准备好扫码）
 
-## 发布流程
+## 通道选择
+
+默认优先级：**MCP → Browser → dry-run**
+
+- MCP 已登录：执行 MCP 发布（推荐）
+- MCP 不可用但 Browser 可用：执行 Browser 发布（兜底）
+- 都不可用：仅做 dry-run，保存内容和日志，不执行真实发布
+
+## MCP 发布流程（推荐）
 
 ### 1. 确认登录
 
 ```
-MCP Tool: check_login_status
-Expected: { logged_in: true, username: "xxx" }
-```
-
-如果未登录：
-```
-MCP Tool: get_login_qrcode
-→ 展示二维码给用户
-→ 用户扫码后重新检查登录状态
+调用 check_login_status
+→ 已登录：继续
+→ 未登录：调用 get_login_qrcode 获取二维码，用户扫码后重试
 ```
 
 ### 2. 准备发布内容
@@ -51,21 +54,83 @@ MCP Tool: get_login_qrcode
 - 数量限制：1-9 张
 - 图片数组按展示顺序排列，第一张为封面
 
-### 3. Browser 发布流程（本地环境，推荐）
+### 3. 调用 publish_content
 
-Browser 通道优先：零配置、Claude Code 内置 browser 工具直接可用、无需预启动服务。
+```
+publish_content(
+  title: "标题（≤20字）",
+  content: "正文内容\n\n#话题1 #话题2 #话题3",
+  images: ["/absolute/path/to/image1.png", "/absolute/path/to/image2.png"],
+  tags: ["话题1", "话题2"],      # 可选
+  schedule_at: "ISO8601时间"     # 可选，定时发布
+)
+```
+
+### 4. 确认发布结果
+
+- MCP 返回成功 → 记录日志
+- MCP 返回失败 → 降级到 Browser 通道重试
+
+### 5. 发布后互动（反检测增强）
+
+```
+# 搜索同领域笔记
+search_feeds(keyword="公考备考")
+
+# 对 2-3 篇高互动笔记点赞
+like_feed(feed_id="xxx", xsec_token="xxx")
+
+# 可选：在 1 篇笔记下留评论
+post_comment_to_feed(feed_id="xxx", xsec_token="xxx", content="写得好详细 收藏了")
+```
+
+---
+
+## Browser 发布流程（兜底）
+
+Browser 通道兜底：零配置、Claude Code 内置 browser 工具直接可用、无需预启动服务。
 可通过 `/setup-browser-cookies` 导入真实浏览器 Cookie 实现免扫码。
 
 通过 browser 工具直接操作小红书创作服务平台：
 
-**4.1 打开发布页**
+### 1. 确认登录
+
+```
+browser navigate "https://creator.xiaohongshu.com/publish/publish"
+→ 若页面直接进入发布台，视为已登录
+→ 若跳到登录页，优先使用 `/setup-browser-cookies`
+→ 如仍未登录，则在浏览器页面中完成扫码或登录
+```
+
+### 2. 准备发布内容
+
+**标题处理**：
+- 确保 ≤ 20 字
+- 去掉首尾空格
+- 不包含特殊格式字符
+
+**正文处理**：
+- 话题标签附加到正文末尾
+- 格式：`正文内容\n\n#话题1 #话题2 #话题3`
+- emoji 保持原样（小红书支持 emoji）
+
+**图片处理**：
+- 确保图片为本地文件路径（绝对路径）
+- 支持格式：JPG、PNG
+- 推荐比例：3:4（竖版，小红书最佳）
+- 数量限制：1-9 张
+- 图片数组按展示顺序排列，第一张为封面
+
+### 3. Browser 操作步骤
+
+**3.1 打开发布页**
 ```
 browser navigate "https://creator.xiaohongshu.com/publish/publish"
 → 等待页面完全加载（5秒）
 → 确认在"上传图文"标签页
 ```
 
-**4.2 上传图片（CDP 协议）**
+**3.2 上传图片（CDP 协议）**
 ```
 通过 CDP DOM.setFileInputFiles 设置图片
 → selector: input.upload-input[type=file]
@@ -73,7 +138,7 @@ browser navigate "https://creator.xiaohongshu.com/publish/publish"
 → 截图确认图片缩略图显示
 ```
 
-**4.3 填写标题（模拟键盘输入）**
+**3.3 填写标题（模拟键盘输入）**
 ```
 → 点击标题输入区域
 → 使用 browser act 逐步输入标题
@@ -81,14 +146,14 @@ browser navigate "https://creator.xiaohongshu.com/publish/publish"
 → 确认标题字数计数器更新
 ```
 
-**4.4 填写正文（模拟键盘输入）**
+**3.4 填写正文（模拟键盘输入）**
 ```
 → 点击正文编辑器
 → 分段输入正文（每段间隔 0.5-1 秒）
 → 确认字数计数器正确
 ```
 
-**4.5 添加话题**
+**3.5 添加话题**
 ```
 → 点击 "# 话题" 按钮
 → 搜索话题关键词
@@ -96,25 +161,25 @@ browser navigate "https://creator.xiaohongshu.com/publish/publish"
 → 重复添加 2-3 个话题
 ```
 
-**4.6 设置为私密发布（关键风控步骤）**
+**3.6 设置为私密发布（关键风控步骤）**
 ```
 → 滚动到页面底部"内容设置"区域
 → 找到"公开可见"下拉框
 → 尝试切换为"仅自己可见"
 → ⚠️ 已知问题：XHS 的 Vue d-select 组件有反自动化保护，
-   合成事件无法触发下拉。如操作失败，以公开模式发布，
-   提醒用户在 APP 上手动改为私密
+  合成事件无法触发下拉。如操作失败，以公开模式发布，
+  提醒用户在 APP 上手动改为私密
 → 点击"发布"按钮
 ```
 
-**4.7 确认发布成功**
+**3.7 确认发布成功**
 ```
 → 等待页面跳转（URL 含 published=true）
 → 访问笔记管理页确认笔记存在
 → 截图保存发布证据
 ```
 
-**4.8 提示用户手动检查**
+**3.8 提示用户手动检查**
 ```
 发布完成后提示用户：
 "笔记已发布，请在手机小红书 APP 上：
@@ -123,37 +188,16 @@ browser navigate "https://creator.xiaohongshu.com/publish/publish"
  3. 同时顺手浏览几篇推荐笔记、点赞 2-3 篇（反检测）"
 ```
 
-### 4. MCP 发布流程（备用，需预启动服务）
+### 4. 错误处理
 
-Browser 不可用时，通过 xiaohongshu-mcp 服务发布。需先启动 MCP 服务。
+- 发布页未打开或跳到登录页 → 重新检查 Cookie 或重新登录
+- 图片上传失败 → 检查图片格式、路径和数量
+- 标题/正文未成功输入 → 检查页面选择器是否变化，必要时改用逐段输入
+- 点击发布后无结果 → 截图留证，等待 5 分钟后重试
 
-```
-MCP Tool: publish_image
-Arguments:
-  title: "���题文字"
-  content: "正文内容（含话题标签）"
-  images: ["/path/to/image1.png", "/path/to/image2.png", ...]
-  tags: ["公考", "行测", "备考干货"]
-```
+### 5. 记录发布日志
 
-**MCP 优势**：
-- Cookie 自动持久化到 `~/xiaohongshu-mcp/cookies.json`，首次扫码后无需重复登录
-- 内置浏览器环境，不受沙箱网络/资源限制
-- 直接 API 调用，操作稳定可靠
-- 可设置私密发布（无反自动化限制）
-
-### 5. 错误处理
-
-- 检查返回结果
-- 如果返回错误：
-  - `login_required` → 重新登录
-  - `content_blocked` → 检查敏感词，修改后重试
-  - `image_error` → 检查图片格式和大小
-  - `rate_limit` → 等待 5 分钟后重试
-
-### 6. 记录发布日志
-
-保存到 `output/publish-log.md`，格式：
+保存到 `output/publish-sop.md`，格式如下。`output/` 为本地运行目录，不纳入 Git 跟踪：
 
 ```markdown
 ## YYYY-MM-DD HH:MM
@@ -222,11 +266,11 @@ Arguments:
 - 两篇间隔要有变化：有时隔 2 小时，有时隔 4 小时
 
 ### 发布后模拟真人行为
-发布成功后，建议用户在 10 分钟内执行以下操作（非自动化，手动完成）：
-1. 浏览首页推荐 2-3 分钟
-2. 给 2-3 篇同领域笔记点赞
-3. 在 1 篇笔记下留言互动
-4. 回复自己笔记下的评论（如有）
+发布成功后，建议在 10 分钟内执行以下操作（MCP 可自动化部分已标注）：
+1. 浏览首页推荐 2-3 分钟 → MCP `list_feeds` 可获取
+2. 给 2-3 篇同领域笔记点赞 → MCP `like_feed` 可自动化
+3. 在 1 篇笔记下留言互动 → MCP `post_comment_to_feed` 可自动化（慎用）
+4. 回复自己笔记下的评论（如有） → MCP `reply_comment_in_feed` 可自动化
 
 ### 内容去同质化
 - 连续两天的笔记，方向、形式、标题句式必须不同
@@ -238,3 +282,24 @@ Arguments:
 - 不要只发不互动（纯发布机器人特征）
 - 每天浏览时间 > 发布时间（正常用户行为）
 - 偶尔收藏/转发其他人的笔记
+
+---
+
+## 矩阵管理（多账号）
+
+当需要管理多个小红书账号时：
+
+### 账号隔离
+- 每个账号对应独立的 xiaohongshu-mcp 实例
+- 每个实例使用独立的 cookie 文件路径
+- 通过不同端口区分实例
+
+### 发布调度
+- 同一内容发多个账号时，标题和正文需做差异化改写
+- 账号间发布间隔 ≥ 30 分钟
+- 不同账号使用不同的话题标签组合
+
+### 风控注意
+- 同 IP 下不超过 3 个活跃账号
+- 新号前 7 天每天不超过 1 篇
+- 各账号的发布时间分散到不同时段

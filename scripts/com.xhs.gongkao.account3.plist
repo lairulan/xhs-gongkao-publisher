@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.xhs.gongkao.account3</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/rulanlai/.claude/skills/xhs-gongkao-publisher/scripts/run-account3.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Weekday</key><integer>1</integer>
+            <key>Hour</key><integer>13</integer>
+            <key>Minute</key><integer>12</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>2</integer>
+            <key>Hour</key><integer>12</integer>
+            <key>Minute</key><integer>41</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>3</integer>
+            <key>Hour</key><integer>12</integer>
+            <key>Minute</key><integer>34</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>4</integer>
+            <key>Hour</key><integer>12</integer>
+            <key>Minute</key><integer>14</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>5</integer>
+            <key>Hour</key><integer>12</integer>
+            <key>Minute</key><integer>37</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>6</integer>
+            <key>Hour</key><integer>12</integer>
+            <key>Minute</key><integer>51</integer>
+        </dict>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key><string>/Users/rulanlai</string>
+        <key>PATH</key><string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:/Users/rulanlai/.npm-global/bin</string>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/tmp/xhs-launchd-account3.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/xhs-launchd-account3-err.log</string>
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

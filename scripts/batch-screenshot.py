@@ -17,8 +17,13 @@ import os
 import sys
 import time
 
+
 def find_chromium():
     """查找系统中可用的 Chromium 路径"""
+    env_path = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH")
+    if env_path and os.path.isfile(env_path):
+        return env_path
+
     paths = [
         "/ms-playwright/chromium-1208/chrome-linux64/chrome",
         "/ms-playwright/chromium-1148/chrome-linux64/chrome",
@@ -34,7 +39,14 @@ def find_chromium():
 
 def batch_screenshot(html_files, output_dir, width=900, height=1200, scale=2):
     """批量截图HTML文件"""
-    from playwright.sync_api import sync_playwright
+    try:
+        from playwright.sync_api import Error as PlaywrightError
+        from playwright.sync_api import sync_playwright
+    except ModuleNotFoundError:
+        print("[error] 缺少 playwright 依赖。", file=sys.stderr)
+        print("[hint] 先运行: python3 -m pip install -r requirements.txt", file=sys.stderr)
+        print("[hint] 然后运行: python3 -m playwright install chromium", file=sys.stderr)
+        sys.exit(1)
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -60,7 +72,12 @@ def batch_screenshot(html_files, output_dir, width=900, height=1200, scale=2):
         if chromium_path:
             launch_args["executable_path"] = chromium_path
 
-        browser = p.chromium.launch(**launch_args)
+        try:
+            browser = p.chromium.launch(**launch_args)
+        except PlaywrightError as exc:
+            print(f"[error] 无法启动 Chromium: {exc}", file=sys.stderr)
+            print("[hint] 请先运行: python3 -m playwright install chromium", file=sys.stderr)
+            sys.exit(1)
         context = browser.new_context(
             viewport={"width": width, "height": height},
             device_scale_factor=scale,
@@ -70,6 +87,11 @@ def batch_screenshot(html_files, output_dir, width=900, height=1200, scale=2):
         results = []
         for i, html_file in enumerate(html_files, 1):
             card_start = time.time()
+
+            if not os.path.isfile(html_file):
+                print(f"[error] HTML 文件不存在: {html_file}", file=sys.stderr)
+                browser.close()
+                sys.exit(1)
 
             # 读取HTML内容
             with open(html_file, "r", encoding="utf-8") as f:
@@ -82,7 +104,12 @@ def batch_screenshot(html_files, output_dir, width=900, height=1200, scale=2):
             output_name = f"xhs-{i:02d}.png"
             output_path = os.path.join(output_dir, output_name)
 
-            page.locator("body").screenshot(path=output_path)
+            try:
+                page.locator("body").screenshot(path=output_path)
+            except PlaywrightError as exc:
+                print(f"[error] 截图失败: {html_file}: {exc}", file=sys.stderr)
+                browser.close()
+                sys.exit(1)
 
             elapsed = time.time() - card_start
             file_size = os.path.getsize(output_path) / 1024

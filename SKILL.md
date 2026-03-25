@@ -1,14 +1,23 @@
 ---
 name: xhs-gongkao-publisher
-version: 1.3.0
-description: 小红书公考种草内容自动生成与发布。自动选题、生成小红书风格图文笔记（信息图+文字笔记混合模式）、配图生成、一键发布到小红书。支持爆款复刻、智能选题轮换、persona人设驱动。触发词："公考种草"、"公考笔记"、"生成公考内容"、"小红书公考"、"gongkao"、"xhs公考"。
+version: 3.0.0
+description: 小红书公考种草内容自动生成与发布 v3.0（CDP+BROWSER双通道）。自动选题、生成小红书风格图文笔记（信息图+文字笔记混合模式）、配图生成、一键发布到小红书。支持爆款复刻、竞品分析、选题优化、数据回流、persona人设驱动、MCP/CDP双通道发布。触发词："公考种草"、"公考笔记"、"生成公考内容"、"小红书公考"、"gongkao"、"xhs公考"。
 author: rulanlai
 tags: [小红书, 公考, 种草, 自动发布, 内容生产]
 ---
 
-# 小红书公考种草发布助手 v1.3.0
+# 小红书公考种草发布助手 v3.0.0
 
-自动生成公考备考种草内容并发布到小红书。支持信息图（干货/攻略）和文字笔记（经验/心态）两种形式，每天 1-2 篇。支持本地 MCP 发布（Cookie 持久化）和沙箱 Browser 发布两种模式，自动检测环境切换。
+> **v3.0.0 大版本升级**：CDP Browser 升级为一级通道（消除 MCP 闭源依赖）、新增竞品分析辅助选题、统一 CLI 工具、分步预览机制、数据回流闭环。
+
+自动生成公考备考种草内容并发布到小红书。支持信息图（干货/攻略）和文字笔记（经验/心态）两种形式，每天 1-2 篇。v3.0.0 架构升级：**CDP Browser 升级为一级通道**（消除 MCP 闭源依赖）、新增竞品分析辅助选题、统一 CLI 工具 `xhs/cli.py`、分步预览确认、数据回流闭环。
+
+| 引擎版本 | 方式 | AI标识 | 适用场景 | 参数 |
+|---------|------|--------|---------|------|
+| **v2.x** | Doubao Seedream AI 文生图 | ⚠️ 有 AI 标 | 封面/场景配图 | `--engine ai` |
+| **v3.0** | HTML 卡片 + Playwright 截图 | ✅ 无 AI 标 | 干货/攻略/日记 | `--engine html`（默认）|
+
+详细说明见 `references/image-engines.md`
 
 <!-- ============================================================
   📁 项目文件结构导航（新开对话时先看这里）
@@ -19,26 +28,21 @@ tags: [小红书, 公考, 种草, 自动发布, 内容生产]
   references/
     content-pillars.md              ← 6 大内容方向 + 选题池 + 话题标签库 + 每周轮换表
     xhs-copywriting-rules.md        ← 小红书文案规则：标题/正文/emoji/CTA + 去AI味写作规则
-    publish-sop.md                  ← 发布操作细节：MCP调用/风控/行为反检测
+    publish-sop.md                  ← 发布操作细节：Browser 发布/风控/行为反检测
   output/                           ← 发布日志和内容存档（运行时自动创建）
 
   ============================================================
   🔌 外部依赖（本 Skill 不包含，需预装）
   ============================================================
 
-  1. xiaohongshu-mcp               ← 小红书 MCP 服务器（CDP 浏览器自动化）
-     路径: ~/xiaohongshu-mcp/xiaohongshu-mcp-{platform}
-           macOS: xiaohongshu-mcp-darwin-arm64
-           Linux: xiaohongshu-mcp-linux-amd64
-     工具: check_login_status, get_login_qrcode, search_feeds,
-           get_feed_detail, publish_image
-     Cookie: 自动持久化到 ~/xiaohongshu-mcp/cookies.json
-
-  2. baoyu-xhs-images Skill        ← 小红书信息图生成（10种视觉风格 × 8种布局）
+  1. baoyu-xhs-images Skill        ← 小红书信息图生成（10种视觉风格 × 8种布局）
      用途: Step 4 信息图模式的配图生成
 
-  3. gemini-image / baoyu-image-gen ← AI 图片生成
+  2. gemini-image / baoyu-image-gen ← AI 图片生成
      用途: Step 4 文字笔记模式的配图生成
+
+  3. xiaohongshu-mcp MCP Server    ← 小红书 MCP 服务（推荐）
+     用途: Step 0 登录检查、Step 1 站内搜索、Step 6 发布、Step 7 互动
 
   ============================================================
   🚀 快速开始（新对话中直接说以下触发词）
@@ -53,11 +57,13 @@ tags: [小红书, 公考, 种草, 自动发布, 内容生产]
   ⚠️ 开发备忘 / TODO
   ============================================================
 
-  - [ ] Phase 2 待做：首次运行验证（启动MCP→登录→跑通完整流程）
-  - [ ] 考虑接入降 AI 率检测 API（如"去AIGC"服务，3.5元/千字）
-  - [ ] output/ 目录的日志格式可能需要根据实际运行调整
+  - [x] Phase 2 已完成：2026-03-17 完成首次实际发布验证（2 个账号，Browser 通道）
+  - [x] 仓库工程化补强：补齐 README / requirements / .gitignore / check / CI
+  - [x] output/ 调整为本地运行产物目录，不再纳入 Git 跟踪
+  - [x] 发布链路收敛：v1.5.0 Browser-only → v2.0.0 MCP 优先 + Browser 兜底
+  - [x] v3.0.0 大升级：CDP Browser 升级为一级通道 + xhs/ 模块化 + 竞品分析 + 数据回流
+  - [ ] 矩阵管理：多账号 MCP 实例管理（不同账号切换不同 cookies）
   - [ ] 信息图 baoyu-xhs-images 的风格参数需要实测确认最佳组合
-  - [ ] 评论自动回复功能（xiaohongshu-mcp 是否支持待确认）
   ============================================================ -->
 
 
@@ -66,10 +72,11 @@ tags: [小红书, 公考, 种草, 自动发布, 内容生产]
 | 配置项 | 值 |
 |--------|-----|
 | 平台 | 小红书 |
-| MCP 服务 | `~/xiaohongshu-mcp/xiaohongshu-mcp-{platform}` （macOS: darwin-arm64, Linux: linux-amd64） |
-| Cookie 文件 | `~/xiaohongshu-mcp/cookies.json`（MCP 自动管理，跨会话持久化） |
+| 发布通道 | `CDP`（一级，推荐）/ `MCP`（兜底）/ `dry-run` |
+| 登录方式 | CDP 通过 `/setup-browser-cookies` 导入 Cookie / MCP 扫码 |
 | 内容存档 | `~/.claude/skills/xhs-gongkao-publisher/output/` |
 | Obsidian 备份 | `~/Documents/Obsidian/公考种草/` |
+| CLI 工具 | `python -m xhs.cli [check\|schedule\|metrics\|selectors]` |
 
 ## 核心定位
 
@@ -103,29 +110,29 @@ tags: [小红书, 公考, 种草, 自动发布, 内容生产]
 ### Step 0: 环境预检
 
 <!-- 🔧 修改指引：
-     - 如果 MCP 服务路径变了，改下面的路径
      - 如果换了配图工具（比如不用 gemini-image），改第3项
      - 这一步是前置守门员，任何一项不通过都会阻止后续流程
-     - v1.4.0: 本地环境 Browser 优先（零配置），MCP 作为备用 -->
+     - v3.0.0: CDP Browser 优先（自主可控），MCP 兜底（闭源备用），均不可用时 dry-run -->
 
 **必须在开始前完成。自动检测运行环境，决定发布通道。**
 
-1. **环境检测（自动）**
+1. **CDP Browser 检测（优先，一级通道）**
    - 检查 `browser` 工具是否可用
-   - **browser 可用** → 设为 `发布通道 = Browser`（本地环境，推荐，零配置）
-   - **browser 不可用** → 尝试调用 MCP 工具 `check_login_status`
-     - MCP 可用 → 设为 `发布通道 = MCP`（需预启动 xiaohongshu-mcp 服务）
-     - 都不可用 → 设为 `发布通道 = dry-run`，仅生成内容不发布
-2. **检查登录状态**
-   - Browser 通道：`browser navigate` 到小红书创作平台，检查是否已登录；可用 `/setup-browser-cookies` 导入本机浏览器 Cookie
-   - MCP 通道：调用 `check_login_status`，未登录则 `get_login_qrcode` 扫码
+   - **browser 可用** → 设为 `发布通道 = CDP`
+   - **browser 不可用** → 降级到 MCP 检测
+2. **MCP 检测（兜底）**
+   - 调用 `check_login_status` 检查 xiaohongshu-mcp 是否可用且已登录
+   - **已登录** → 设为 `发布通道 = MCP`
+   - **未登录** → 调用 `get_login_qrcode` 展示二维码，等待用户扫码登录
+   - **MCP 不可用**（工具调用报错/超时）→ 降级到 dry-run
 3. **检查配图能力**
    - 确认 `baoyu-xhs-images` Skill 可用（信息图模式）
    - 确认 `gemini-image` 或 `baoyu-image-gen` Skill 可用（文字笔记配图）
 
-> **环境差异说明**：
-> - **本地（Browser，推荐）**：零配置，Claude Code 内置 browser 工具直接可用；可通过 `/setup-browser-cookies` 导入真实浏览器 Cookie 实现免扫码；私密发布下拉可能受反自动化保护（可公开发布后手动切换）
-> - **MCP（备用）**：Cookie 自动持久化到 `cookies.json`，无需每次扫码；需预先启动 xiaohongshu-mcp 服务
+> **通道说明（v3.0.0 优先级调整）**：
+> - **CDP Browser（一级，推荐）**：`xhs/browser.py` 实现，完全自主可控，XHS 改版时只需更新 `xhs/selectors.py`；配合 Stealth JS 模拟真人操作；通过 `/setup-browser-cookies` 导入 Cookie 免扫码
+> - **MCP（兜底）**：闭源第三方，需等待作者更新；一步发布效率高，支持站内搜索和互动
+> - **dry-run**：均不可用时，仅生成内容和日志，不执行真实发布
 
 ### Step 1: 智能选题
 
@@ -142,12 +149,13 @@ tags: [小红书, 公考, 种草, 自动发布, 内容生产]
 - 搜索关键词：`公务员考试 最新消息 {当前年份}`、`国考省考 政策变化`、`申论热点话题`
 - 如果有重大新闻（报名时间、政策变化、考纲调整），立即锁定此选题
 
-**优先级 2：小红书热门笔记分析**
-- 调用 `search_feeds` 搜索以下关键词（轮换）：
+**优先级 2：小红书站内热门笔记分析**
+- 使用 `search_feeds` MCP 工具搜索以下关键词（轮换）：
   - `公考上岸经验`、`行测秒杀技巧`、`申论高分模板`、`公考备考时间表`
   - `公务员岗位推荐`、`公考资料推荐`、`在职备考公务员`
-- 取前 5 条高互动笔记，分析其选题方向和内容结构
+- 使用 `get_feed_detail` 获取高互动笔记详情，分析其选题方向和内容结构
 - 选择一个可以"差异化"或"补充"的角度
+- 如 MCP 不可用，降级使用 Browser 站内搜索页或 WebSearch
 
 **优先级 3：内容支柱自动轮换**
 - 根据当天日期和 `references/content-pillars.md` 中的轮换表自动选择
@@ -171,7 +179,7 @@ tags: [小红书, 公考, 种草, 自动发布, 内容生产]
 
 当用户指定"爆款复刻"模式，或提供了某个笔记链接时执行：
 
-1. 用 `search_feeds` 搜索同类笔记，或用 `get_feed_detail` 获取指定笔记详情
+1. 用 `search_feeds` + `get_feed_detail` 获取竞品笔记，或直接打开用户提供的笔记链接查看详情
 2. 拆解爆款 5 维度模板：
    - **标题模板**：句式（数字+痛点？疑问？感叹？）、字数、关键词位置
    - **封面模板**：文字信息层级、配色风格
@@ -337,34 +345,52 @@ tags: [小红书, 公考, 种草, 自动发布, 内容生产]
 ### Step 6: 发布到小红书
 
 <!-- 🔧 修改指引：
-     - MCP 调用参数格式如有变化，同步更新这里和 publish-sop.md
      - 发布时间随机化、风控规则的详细定义在 publish-sop.md
-     - 日志和存档路径可自定义 -->
+     - 日志和存档路径可自定义
+     - v2.0.0: MCP 优先发布，Browser 兜底 -->
 
 **发布方式**（Step 0 环境检测自动决定）：
-1. **MCP 调用**（本地环境，推荐）：通过 xiaohongshu-mcp 的 `publish_image` 工具，Cookie 持久化免扫码
-2. **Browser 直接操作**（沙箱/云端环境，备用）：通过 browser 工具操作创作服务平台 Web UI + CDP 图片上传
+
+#### 方式 1：MCP 发布（推荐）
+
+调用 `publish_content` MCP 工具：
+- `title`: 标题（≤20字）
+- `content`: 正文（不包含话题标签）
+- `images`: 本地图片绝对路径数组（至少 1 张）
+- `tags`: 话题标签数组（可选，如 `["公考", "行测", "上岸经验"]`）
+- `schedule_at`: 定时发布时间（可选，ISO8601 格式如 `2026-03-23T10:30:00+08:00`，支持 1 小时至 14 天内）
+
+#### 方式 2：Browser 发布（兜底）
+
+通过 browser 工具操作创作服务平台 Web UI + CDP 图片上传。详细操作步骤见 `references/publish-sop.md` 的 Browser 发布流程章节。
 
 **关键风控策略：默认私密发布**
-- MCP 通道：通过参数设置"仅自己可见"
+- MCP 通道：发布后建议用户在 APP 检查可见性
 - Browser 通道：尝试操作权限下拉（如受反自动化保护则以公开发布，提醒用户手动改私密）
 - 发布后提示用户在 APP 上手动检查并切换为公开
 - Browser 通道操作节奏：每步之间间隔 2-5 秒，总操作时长 >= 2 分钟
 
-详细操作步骤见 `references/publish-sop.md`。
-
 发布成功后：
 1. 记录发布日志到 `output/publish-log.md`
 2. 保存内容到 `output/{date}-{title-slug}.md`
-3. 提示用户："笔记已发布为【仅自己可见】，请在 APP 上检查排版后手动切换为公开"
+3. **发布后互动（反检测增强，仅 MCP 通道）**：用 `like_feed` 给 2-3 篇同领域笔记点赞，模拟真实用户行为
+4. 提示用户："笔记已发布，请在 APP 上检查排版和可见性"
 
 ### Step 7: 发布后（可选）
 
 <!-- 🔧 修改指引：
      - Obsidian 路径可自定义
      - Frontmatter 字段可根据需要扩展
-     - 发布后的手动互动建议见 publish-sop.md 的"行为层反检测"章节 -->
+     - 发布后的手动互动建议见 publish-sop.md 的"行为层反检测"章节
+     - v2.0.0: MCP 互动增强（点赞/评论同领域笔记） -->
 
+**MCP 互动增强（仅 MCP 通道可用时执行）**：
+- 使用 `search_feeds` 搜索同领域关键词（如"公考备考"、"行测技巧"）
+- 使用 `like_feed` 点赞 2-3 篇相关笔记
+- 使用 `post_comment_to_feed` 在 1 篇笔记下留评论（可选，需慎重，内容需自然真实）
+- 互动间隔 30-60 秒，模拟真实用户节奏
+
+**Obsidian 存档**：
 - 保存完整内容（标题+正文+图片路径+话题）到 Obsidian
 - 路径：`~/Documents/Obsidian/公考种草/{YYYY-MM-DD}-{标题}.md`
 - Frontmatter 格式：
@@ -434,7 +460,11 @@ tags: [小红书, 公考, 种草, 自动发布, 内容生产]
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| 1.3.0 | 2026-03-17 | 双通道发布：MCP（本地推荐）+ Browser（沙箱备用），环境自动检测，跨平台路径支持，Cookie 持久化说明 |
+| 3.0.0 | 2026-03-25 | 大版本升级：CDP Browser 升级为一级通道（消除 MCP 闭源依赖）、新增 xhs/ 核心模块（selectors/browser/cli/content_analyzer）、竞品分析辅助选题、分步预览确认机制、数据回流闭环、统一 CLI 工具 |
+| 2.0.0 | 2026-03-23 | 架构升级：MCP 优先 + Browser 兜底，接入 xiaohongshu-mcp 发布/搜索/互动，矩阵管理就绪 |
+| 1.5.0 | 2026-03-23 | 切换为 Browser-only：移除备用发布方案及其校验入口，统一文档与发布 SOP |
+| 1.4.1 | 2026-03-23 | 工程健康度修复：统一发布优先级表述，补齐 README/.gitignore/requirements/check/CI，脚本容错增强，output 改为本地产物目录 |
+| 1.3.0 | 2026-03-17 | 发布通道扩展与环境自动检测，跨平台路径支持，Cookie 持久化说明 |
 | 1.2.0 | 2026-03-11 | 全文注释系统：文件结构导航+外部依赖说明+各Step修改指引+开发TODO |
 | 1.1.0 | 2026-03-11 | 新增 Step 3.5 人性化改写（反AI检测），8条去AI味硬规则+图片去AI化+审核清单增强 |
-| 1.0.0 | 2026-03-11 | 初始版本：6大内容支柱、双模式笔记、xiaohongshu-mcp集成 |
+| 1.0.0 | 2026-03-11 | 初始版本：6大内容支柱、双模式笔记 |
