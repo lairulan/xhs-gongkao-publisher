@@ -23,26 +23,27 @@ esac
 
 echo "[$(date)] 账号2 开始生成内容，选题：$TOPIC" >> "$LOG_FILE"
 
-# 图片引擎配置
-# IMAGE_ENGINE=html  → v3.0 HTML卡片截图（默认，无AI标识）
-# IMAGE_ENGINE=ai    → v2.x Doubao Seedream AI图片（有AI标识）
-IMAGE_ENGINE="${IMAGE_ENGINE:-html}"
-
-export OPENAI_API_KEY="$ARK_API_KEY"
-export OPENAI_BASE_URL="https://ark.cn-beijing.volces.com/api/v3"
-export IMAGE_MODEL="doubao-seedream-3-0-t2i-250415"
+# 图片引擎配置：强制使用 HTML 卡片（无AI标识，无乱码）
+IMAGE_ENGINE="html"
 
 claude --dangerously-skip-permissions -p "公考种草 账号2
 
 账号：小云学姐（江苏公务员学姐persona）
 MCP工具：mcp__xiaohongshu-mcp-2__（端口18061）
-Persona文件：$SKILL_DIR/references/personas/account-2-xuejie.md
-图片引擎：$IMAGE_ENGINE（详见 references/image-engines.md）
-  - html = v3.0 HTML卡片截图，无AI标识（推荐）
-  - ai   = v2.x Doubao Seedream，有AI标识
-今日选题方向：$TOPIC
+Persona文件：\$SKILL_DIR/references/personas/account-2-xuejie.md
+文案规则文件：\$SKILL_DIR/references/xhs-copywriting-rules.md（必读）
+图片引擎：\$IMAGE_ENGINE（强制 HTML 卡片，无AI标识）
+今日选题方向：\$TOPIC
 
-请读取 persona 文件，按照小云学姐的温柔亲切语气生成一篇小红书笔记并发布。
+工作流程：
+1. 读取 persona 文件和 xhs-copywriting-rules.md
+2. 生成小红书笔记（标题≤20字，正文符合去AI味规则）
+3. 生成后自检：检查是否符合7条去AI味规则（至少满足4条）
+   - 私人化场景≥2处、不完美表达≥1处、情绪波动≥1处
+   - 句式长短交替、口语化词汇≥3处、非模板化结尾
+4. 如自检不通过，重新改写直到通过
+5. 检查登录状态，发布
+
 发布前先检查登录状态，失败则记录错误后退出。" >> "$LOG_FILE" 2>&1
 
 echo "[$(date)] 账号2 完成" >> "$LOG_FILE"
